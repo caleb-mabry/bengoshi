@@ -41,7 +41,6 @@ net.createServer((socket) => {
         oocmute: false,
         cemute: false,
         mute: false,
-        badPackets: config.maxBadPackets,
         room: 0,
         websocket: false,
         name: socketName,
@@ -100,26 +99,7 @@ net.createServer((socket) => {
             console.log("Unimplemented packet: " + header);
             console.log(packetContents);
             console.log(socketName);
-            client.badPackets--;
             return;
-        }
-
-        // Anti-spam
-        if (!client.moderator) {
-            if (client.badPackets == 0) {
-                util.ban(client, config);
-            }
-            if (packetContents.length > config.maxArgLength) {
-                util.ban(client, config);
-            }
-            if (header != "CH" && header + packetContents.toString() == client.lastPacket)
-                client.repeats++;
-            else
-                client.repeats = 0;
-            if (client.repeats >= config.maxRepeats) {
-                util.ban(client, config);
-            }
-            client.lastPacket = header + packetContents.toString();
         }
 
         protocol.PacketHandler[header](packetContents, socket, client);
