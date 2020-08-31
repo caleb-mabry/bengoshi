@@ -1,7 +1,8 @@
 // All the packet handling and game state (that is not user-specific) takes place here
 const fs = require("fs");
 const util = require("./util.js");
-const cmds = require("./commands.js");
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
 let config = JSON.parse(fs.readFileSync("./config.json"));
 
 // Game state
@@ -27,7 +28,7 @@ for (let i = 0; i < config.areas.length; i++) {
     areas[i].song = "~stop.mp3";
 }
 
-function reloadConf(){
+function reloadConf() {
     config = JSON.parse(fs.readFileSync("./config.json"));
 }
 
@@ -126,8 +127,8 @@ PacketHandler = {
             util.send(socket, "CT", ["Server", "You are muted!"], client.websocket);
             return;
         }
-        if(client.pos != undefined){
-            if(packetContents[5] != client.pos)
+        if (client.pos != undefined) {
+            if (packetContents[5] != client.pos)
                 packetContents[12] = 1; // sprite flip
             packetContents[5] = client.pos;
         }
@@ -142,9 +143,20 @@ PacketHandler = {
         let input = packetContents[1];
         if (input.charAt(0) == "/") {
             let args = input.split(" ");
-            let cmd = args[0];
+            let cmd = args[0].substring(1);
             args.shift();
-            cmds.parseCmd(cmd, args, socket, client, config, areas);
+            let foundCommand = false
+            for (const file of commandFiles) {
+                const command = require(`./commands/${file}`)
+                if (command.name.includes(cmd)) {
+                    foundCommand = true
+                    command.respond(cmd, args, socket, client, config, areas)
+                    break
+                }
+            }
+            if (foundCommand === false) {
+                util.send(socket, "CT", ["Server", "Invalid Command"], client.websocket);
+            }
             return;
         }
         util.broadcast("CT", packetContents, client.area);
@@ -291,13 +303,13 @@ PacketHandler = {
             util.send(socket, "MC", [areas[client.area].song, -1], client.websocket); // Send song
             util.send(socket, "BN", [areas[client.area].background], client.websocket); // Send background
         }
-        else{
+        else {
             util.send(socket, "EM", songList, client.websocket);
         }
     },
     // AO1.x Disconnect, don't need to do anything
     "DC": (packetContents, socket, client) => {
-        
+
     },
     "PW": (packetContents, socket, client) => {
         // TODO: This
